@@ -25,13 +25,15 @@ function get (url, callback) {
   method.get(url, function (message) {
     debug('Downloaded: ' + url);
 
-    let data = '';
+    let data = [];
+    let length = 0;
 
     message.on('data', function (chunk) {
-      data += chunk.toString();
+      data.push(chunk);
+      length += chunk.length;
     });
     message.on('end', function () {
-      callback(null, data);
+      callback(null, Buffer.concat(data, length));
     });
     message.on('error', function (error) {
       callback(error);
