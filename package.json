@@ -1,0 +1,24 @@
+{
+  "name": "mc-resource",
+  "version": "1.0.0",
+  "description": "Utility for MineCraft resource downloading",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MadBrozzeR/mc-resource.git"
+  },
+  "keywords": [
+    "minecraft",
+    "mc",
+    "download"
+  ],
+  "author": "MadBrozzeR",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MadBrozzeR/mc-resource/issues"
+  },
+  "homepage": "https://github.com/MadBrozzeR/mc-resource#readme"
+}
