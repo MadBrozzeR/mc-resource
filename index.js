@@ -61,11 +61,11 @@ function getAsset (asset) {
   return getPromissed(template(URL.ASSETS, data));
 }
 
-function download (artifact) {
+function download (artifact, params) {
   const url = artifact && artifact.url;
 
   if (url) {
-    return getPromissed(url);
+    return getPromissed(url, params);
   } else {
     return Promise.reject(new Error('"' + artifact + '" is not an artifact'));
   }

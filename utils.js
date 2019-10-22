@@ -17,7 +17,7 @@ function template (template, substitutions) {
   });
 }
 
-function get (url, callback) {
+function get (url, { onProgress } = {}, callback) {
   debug('Downloading: ' + url);
 
   const method = url[4] === 's' ? https : http;
@@ -31,6 +31,7 @@ function get (url, callback) {
     message.on('data', function (chunk) {
       data.push(chunk);
       length += chunk.length;
+      onProgress && onProgress(length);
     });
     message.on('end', function () {
       callback(null, Buffer.concat(data, length));
@@ -43,7 +44,7 @@ function get (url, callback) {
 
 function getPromissedJSON (url) {
   return new Promise(function (resolve, reject) {
-    get(url, function (error, data) {
+    get(url, undefined, function (error, data) {
       try {
         error ? reject(error) : resolve(JSON.parse(data));
       } catch (error) {
@@ -53,9 +54,9 @@ function getPromissedJSON (url) {
   });
 }
 
-function getPromissed (url) {
+function getPromissed (url, params) {
   return new Promise(function (resolve, reject) {
-    get(url, function (error, data) {
+    get(url, params, function (error, data) {
       try {
         error ? reject(error) : resolve(data);
       } catch (error) {
