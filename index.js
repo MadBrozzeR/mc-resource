@@ -35,6 +35,13 @@ function getVersionByObject (version) {
   return getPromissedJSON(url);
 }
 
+const JSON_CT = {contentType: 'application/json'};
+function checkResponse ({data, status}) {
+  const response = data.length && JSON.parse(data.toString());
+
+  return (status < 300) ? Promise.resolve(response) : Promise.reject(response);
+}
+
 function findVersion (version, manifest) {
   for (let index = 0 ; index < manifest.versions.length ; ++index) {
     if (manifest.versions[index].id === version) {
@@ -109,8 +116,8 @@ function getNameHistory (uuid) {
 }
 
 function getUUIDs (names) {
-  return postPromissed(URL.UUIDS, JSON.stringify(names)).then(function (response) {
-    return JSON.parse(response);
+  return postPromissed(URL.UUIDS, JSON.stringify(names)).then(function ({data}) {
+    return JSON.parse(data);
   });
 }
 
@@ -134,7 +141,7 @@ function retrieveProperties (profile) {
 }
 
 function getProfileRaw (uuid) {
-  const url = template(PROFILE, {uuid});
+  const url = template(URL.PROFILE, {uuid});
 
   return getPromissedJSON(url);
 }
@@ -142,6 +149,7 @@ function getProfileRaw (uuid) {
 function getProfile (uuid) {
   return getProfileRaw(uuid).then(function (profile) {
     profile.properties = retrieveProperties(profile);
+    return profile;
   });
 }
 
@@ -154,9 +162,34 @@ function changeSkin (skin, {uuid, token, slim = false}) {
   return postPromissed(url, data, {
     token,
     contentType
-  });
+  }).then(checkResponse);
 }
 
+/*
+function uploadSkin (imageData, {uuid, token, slim, name}) {
+  const url = template(URL.SKIN, {uuid});
+  const model = slim ? 'slim' : '';
+  const mimePart = new MimePart();
+  const contentType = `multipart/form-data; boundary=${mimePart.boundary}`;
+  const mimeParts = [
+    mimePart.binaryPart({
+      'Content-Disposition': 'form-data; name="model"'
+    }, model),
+    mimePart.binaryPart({
+      'Content-Disposition': `form-data; name="file"; filename="${name}"`,
+      'Content-type': 'image/png'
+    }, imageData),
+    Buffer.from(mimePart.end())
+  ];
+  const length = mimeParts[0].length + mimeParts[1].length + mimeParts[2].length;
+  const data = Buffer.concat(mimeParts, length);
+
+  return putPromissed(url, data, {
+    token,
+    contentType
+  }).then(checkResponse);
+}
+*/
 function uploadSkin (imageData, {uuid, token, slim, name}) {
   const url = template(URL.SKIN, {uuid});
   const model = slim ? 'slim' : '';
@@ -166,24 +199,20 @@ function uploadSkin (imageData, {uuid, token, slim, name}) {
     'Content-Disposition': 'form-data; name="model"'
   }, slim ? 'slim' : '') + mimePart.part({
     'Content-Disposition': `form-data; name="file"; filename="${name}"`,
-    'Content-type': 'image/png'
-  }, imageData) + mimePart.end();
+    'Content-type': 'image/png',
+    'Content-Transfer-Encoding': 'base64'
+  }, imageData.toString('base64')) + mimePart.end();
 
-  return postPromissed(url, data, {
+  return putPromissed(url, data, {
     token,
     contentType
-  });
+  }).then(checkResponse);
 }
 
 function resetSkin ({uuid, token}) {
   const url = template(URL.SKIN, {uuid});
 
-  return deletePromissed(url, token);
-}
-
-const JSON_CT = {contentType: 'application/json'};
-function checkResponse (data, status) {
-  return (status < 300) ? Promise.resolve(data) : Promise.reject(data);
+  return deletePromissed(url, token).then(checkResponse);
 }
 
 const Auth = {
@@ -248,7 +277,7 @@ module.exports = {
   getNameHistory,
   getUUIDs,
   getProfileRaw,
-  getProfileRaw,
+  getProfile,
   changeSkin,
   uploadSkin,
   resetSkin,

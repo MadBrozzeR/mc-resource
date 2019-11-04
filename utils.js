@@ -43,9 +43,10 @@ function get (url, { onProgress } = {}, callback) {
 }
 
 function request (url, method, headers, callback) {
-  const method = url[4] === 's' ? https : http;
+  const protocol = url[4] === 's' ? https : http;
+  debug('Requesting: ' + url);
 
-  return method.request(url, {
+  return protocol.request(url, {
     method,
     headers
   }, function (response) {
@@ -56,6 +57,7 @@ function request (url, method, headers, callback) {
       chunks.push(chunk);
       length += chunk.length;
     }).on('end', function () {
+      debug('Status: ' + response.statusCode);
       callback(null, Buffer.concat(chunks, length), response.statusCode);
     }).on('error', function (error) {
       callback(error);
@@ -93,8 +95,10 @@ function postPromissed (url, data, {token, contentType} = {}) {
     token && (headers.Authorization = 'Bearer ' + token);
     contentType && (headers['Content-Type'] = contentType);
 
+    debug('Data: ' + data);
+    debug('Headers: ' + JSON.stringify(headers));
     request(url, 'POST', headers, function (error, data, status) {
-      error ? reject(error) : resolve(data, status);
+      error ? reject(error) : resolve({data, status});
     }).end(data);
   });
 }
@@ -107,8 +111,10 @@ function putPromissed (url, data, {token, contentType} = {}) {
     token && (headers.Authorization = 'Bearer ' + token);
     contentType && (headers['Content-Type'] = contentType);
 
+    debug('Data: ' + data);
+    debug('Headers: ' + JSON.stringify(headers));
     request(url, 'PUT', headers, function (error, data, status) {
-      error ? reject(error) : resolve(data, status);
+      error ? reject(error) : resolve({data, status});
     }).end(data);
   });
 }
@@ -118,8 +124,10 @@ function deletePromissed (url, token) {
     const headers = {};
     token && (headers.Authorization = 'Bearer ' + token);
 
+
+    debug('Headers: ' + JSON.stringify(headers));
     request(url, 'DELETE', headers, function (error, data, status) {
-      error ? reject(error) : resolve(data, status);
+      error ? reject(error) : resolve({data, status});
     }).end();
   });
 }
@@ -143,12 +151,29 @@ function MimePart () {
 MimePart.prototype.part = function (headers, data) {
   let result = this.boundary + '\n';
 
-  for (let key in headers) {
-    result += key + ': ' + headers[key]; + '\n'
+  for (const key in headers) {
+    result += key + ': ' + headers[key] + '\n';
   }
   result += '\n' + data + '\n';
 
   return result;
+}
+MimePart.prototype.binaryPart = function (headers, data) {
+  const separator = '\n';
+  const sepLen = Buffer.byteLength(separator);
+
+  let length = Buffer.byteLength(this.boundary) + sepLen;
+  let result = [Buffer.from(this.boundary + separator)];
+
+  for (const key in headers) {
+    const header = Buffer.from(key + ': ' + headers[key] + separator);
+    result.push(header);
+    length += header.length;
+  }
+  result.push(Buffer.from(separator), Buffer.from(data), Buffer.from(separator));
+  length += Buffer.byteLength(data) + 2 * sepLen;
+
+  return Buffer.concat(result, length);
 }
 MimePart.prototype.end = function () {
   return this.boundary + '--'
