@@ -199,7 +199,7 @@ function uploadSkin (imageData, {uuid, token, slim, name}) {
     'Content-Disposition': 'form-data; name="model"'
   }, slim ? 'slim' : '') + mimePart.part({
     'Content-Disposition': `form-data; name="file"; filename="${name}"`,
-    'Content-type': 'image/png',
+    'Content-Type': 'image/png',
     'Content-Transfer-Encoding': 'base64'
   }, imageData.toString('base64')) + mimePart.end();
 

@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/MadBrozzeR/mc-resource/issues"
   },
-  "homepage": "https://github.com/MadBrozzeR/mc-resource#readme"
+  "homepage": "https://github.com/MadBrozzeR/mc-resource#readme",
+  "dependencies": {
+    "mbr-request": "^1.0.0"
+  }
 }

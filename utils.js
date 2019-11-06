@@ -1,5 +1,6 @@
 const https = require('https');
 const http = require('http');
+const request = require('mbr-request').requestDebugger;
 
 const SETTINGS = require('./settings.js');
 
@@ -42,31 +43,6 @@ function get (url, { onProgress } = {}, callback) {
   });
 }
 
-function request (url, method, headers, callback) {
-  const protocol = url[4] === 's' ? https : http;
-  debug('Requesting: ' + url);
-
-  return protocol.request(url, {
-    method,
-    headers
-  }, function (response) {
-    const chunks = [];
-    let length = 0;
-
-    response.on('data', function (chunk) {
-      chunks.push(chunk);
-      length += chunk.length;
-    }).on('end', function () {
-      debug('Status: ' + response.statusCode);
-      callback(null, Buffer.concat(chunks, length), response.statusCode);
-    }).on('error', function (error) {
-      callback(error);
-    });
-  }).on('error', function (error) {
-    callback(error);
-  });
-}
-
 function getPromissedJSON (url) {
   return new Promise(function (resolve, reject) {
     get(url, undefined, function (error, data) {
@@ -95,11 +71,22 @@ function postPromissed (url, data, {token, contentType} = {}) {
     token && (headers.Authorization = 'Bearer ' + token);
     contentType && (headers['Content-Type'] = contentType);
 
-    debug('Data: ' + data);
-    debug('Headers: ' + JSON.stringify(headers));
-    request(url, 'POST', headers, function (error, data, status) {
-      error ? reject(error) : resolve({data, status});
-    }).end(data);
+    request({
+      url,
+      method: 'POST',
+      headers,
+      onResponse: function (data, message) {
+        resolve({data, status: message.statusCode})
+      },
+      onError: reject,
+      data,
+      getRawRequest: function (data) {
+        console.log(data.toString());
+      },
+      getRawResponse: function (data) {
+        console.log(data.toString());
+      }
+    });
   });
 }
 
@@ -111,11 +98,22 @@ function putPromissed (url, data, {token, contentType} = {}) {
     token && (headers.Authorization = 'Bearer ' + token);
     contentType && (headers['Content-Type'] = contentType);
 
-    debug('Data: ' + data);
-    debug('Headers: ' + JSON.stringify(headers));
-    request(url, 'PUT', headers, function (error, data, status) {
-      error ? reject(error) : resolve({data, status});
-    }).end(data);
+    request({
+      url,
+      method: 'PUT',
+      headers,
+      onResponse: function (data, message) {
+        resolve({data, status: message.statusCode})
+      },
+      onError: reject,
+      data,
+      getRawRequest: function (data) {
+        console.log(data.toString());
+      },
+      getRawResponse: function (data) {
+        console.log(data.toString());
+      }
+    });
   });
 }
 
@@ -124,11 +122,15 @@ function deletePromissed (url, token) {
     const headers = {};
     token && (headers.Authorization = 'Bearer ' + token);
 
-
-    debug('Headers: ' + JSON.stringify(headers));
-    request(url, 'DELETE', headers, function (error, data, status) {
-      error ? reject(error) : resolve({data, status});
-    }).end();
+    request({
+      url,
+      method: 'DELETE',
+      headers,
+      onResponse: function (data, message) {
+        resolve({data, status: message.statusCode})
+      },
+      onError: reject
+    });
   });
 }
 
