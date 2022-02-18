@@ -1,8 +1,9 @@
 const https = require('https');
 const http = require('http');
-const request = require('mbr-request').requestDebugger;
+const fs = require('fs');
+const request = require('../../../request/index.js').requestDebugger;
 
-const SETTINGS = require('./settings.js');
+const SETTINGS = require('../settings.js');
 
 const REPLACE_KEY = /\$\{(\w+)\}/g;
 
@@ -15,6 +16,24 @@ function debug (data) {
 function template (template, substitutions) {
   return template.replace(REPLACE_KEY, function (_, key) {
     return substitutions[key] || '';
+  });
+}
+
+function readFile (file) {
+  return new Promise(function (resolve, reject) {
+    fs.readFile(file, function (error, data) {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(data);
+      }
+    })
+  });
+}
+
+function readJsonFile(file) {
+  return readFile(file).then(function (data) {
+    return JSON.parse(data.toString());
   });
 }
 
@@ -108,10 +127,16 @@ function putPromissed (url, data, {token, contentType} = {}) {
       onError: reject,
       data,
       getRawRequest: function (data) {
-        console.log(data.toString());
+        console.log('raw request', data.toString());
+        fs.writeFile('./raw-request.log', data, function (error) {
+          console.log(error);
+        });
       },
       getRawResponse: function (data) {
-        console.log(data.toString());
+        console.log('raw response', data.toString());
+        fs.writeFile('./raw-response.log', data, function (error) {
+          console.log(error);
+        });
       }
     });
   });
@@ -137,8 +162,8 @@ function deletePromissed (url, token) {
 const BOUNDARY_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
 function generateBoundary() {
-  let length = 10;
-  let boundary = '--boundary-';
+  let length = 16;
+  let boundary = 'mbr-mime-bound-';
 
   while (length--) {
     boundary += BOUNDARY_CHARS[~~(Math.random() * BOUNDARY_CHARS.length)];
@@ -151,7 +176,7 @@ function MimePart () {
   this.boundary = generateBoundary();
 }
 MimePart.prototype.part = function (headers, data) {
-  let result = this.boundary + '\n';
+  let result = '--' + this.boundary + '\n';
 
   for (const key in headers) {
     result += key + ': ' + headers[key] + '\n';
@@ -164,8 +189,8 @@ MimePart.prototype.binaryPart = function (headers, data) {
   const separator = '\n';
   const sepLen = Buffer.byteLength(separator);
 
-  let length = Buffer.byteLength(this.boundary) + sepLen;
-  let result = [Buffer.from(this.boundary + separator)];
+  let length = Buffer.byteLength(this.boundary) + sepLen + 2;
+  let result = [Buffer.from('--' + this.boundary + separator)];
 
   for (const key in headers) {
     const header = Buffer.from(key + ': ' + headers[key] + separator);
@@ -178,15 +203,24 @@ MimePart.prototype.binaryPart = function (headers, data) {
   return Buffer.concat(result, length);
 }
 MimePart.prototype.end = function () {
-  return this.boundary + '--'
+  return '--' + this.boundary + '--';
+}
+
+function checkResponse ({data, status}) {
+  const response = data.length && JSON.parse(data.toString());
+
+  return (status < 300) ? Promise.resolve(response) : Promise.reject(response);
 }
 
 module.exports = {
+  readFile,
+  readJsonFile,
   getPromissed,
   getPromissedJSON,
   postPromissed,
   putPromissed,
   deletePromissed,
   template,
-  MimePart
+  MimePart,
+  checkResponse
 };
