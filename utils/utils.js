@@ -1,7 +1,7 @@
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
-const request = require('../../../request/index.js').requestDebugger;
+const request = require('mbr-request').requestDebugger;
 
 const SETTINGS = require('../settings.js');
 
@@ -40,9 +40,9 @@ function readJsonFile(file) {
 function get (url, { onProgress } = {}, callback) {
   debug('Downloading: ' + url);
 
-  const method = url[4] === 's' ? https : http;
+  const protocol = url[4] === 's' ? https : http;
 
-  method.get(url, function (message) {
+  protocol.get(url, function (message) {
     debug('Downloaded: ' + url);
 
     let data = [];
@@ -59,12 +59,30 @@ function get (url, { onProgress } = {}, callback) {
     message.on('error', function (error) {
       callback(error);
     });
+  }).on('error', function (error) {
+    callback(error);
   });
 }
 
-function getPromissedJSON (url) {
+function getRepeatable (url, {retries = 3, delay = 300, ...props} = {}, callback) {
+  get(url, props, function (error, data) {
+    if (error) {
+      if (retries > 0) {
+        setTimeout(function () {
+          getRepeatable(url, { retries: retries - 1, delay, props }, callback);
+        }, delay);
+      } else {
+        callback(error);
+      }
+    } else {
+      callback(null, data);
+    }
+  });
+}
+
+function getPromissedJSON (url, params) {
   return new Promise(function (resolve, reject) {
-    get(url, undefined, function (error, data) {
+    getRepeatable(url, params, function (error, data) {
       try {
         error ? reject(error) : resolve(JSON.parse(data));
       } catch (error) {
@@ -76,7 +94,7 @@ function getPromissedJSON (url) {
 
 function getPromissed (url, params) {
   return new Promise(function (resolve, reject) {
-    get(url, params, function (error, data) {
+    getRepeatable(url, params, function (error, data) {
       error ? reject(error) : resolve(data);
     });
   });
