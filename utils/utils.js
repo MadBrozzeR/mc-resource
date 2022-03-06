@@ -3,15 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const request = require('mbr-request').requestDebugger;
 
-const SETTINGS = require('../settings.js');
-
 const REPLACE_KEY = /\$\{(\w+)\}/g;
-
-function debug (data) {
-  if (SETTINGS.debug instanceof Function) {
-    SETTINGS.debug(data);
-  }
-}
 
 function template (template, substitutions) {
   return template.replace(REPLACE_KEY, function (_, key) {
@@ -37,13 +29,13 @@ function readJsonFile(file) {
   });
 }
 
-function get (url, { onProgress } = {}, callback) {
-  debug('Downloading: ' + url);
+function get (url, { onProgress, logger } = {}, callback) {
+  logger && logger('Downloading: ' + url);
 
   const protocol = url[4] === 's' ? https : http;
 
   protocol.get(url, function (message) {
-    debug('Downloaded: ' + url);
+    logger && logger('Downloaded: ' + url);
 
     let data = [];
     let length = 0;
@@ -64,12 +56,15 @@ function get (url, { onProgress } = {}, callback) {
   });
 }
 
-function getRepeatable (url, {retries = 3, delay = 300, ...props} = {}, callback) {
+function getRepeatable (url, {retries = 20, delay = 300, ...props} = {}, callback) {
   get(url, props, function (error, data) {
     if (error) {
       if (retries > 0) {
         setTimeout(function () {
-          getRepeatable(url, { retries: retries - 1, delay, props }, callback);
+          if (props.logger) {
+            props.logger('Retry[' + retries + ']:' + url);
+          }
+          getRepeatable(url, { retries: retries - 1, delay, ...props }, callback);
         }, delay);
       } else {
         callback(error);

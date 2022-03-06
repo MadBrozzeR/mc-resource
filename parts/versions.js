@@ -3,11 +3,7 @@ const {
   readJsonFile,
   getPromissed,
   getPromissedJSON,
-  // postPromissed,
-  // putPromissed,
-  // deletePromissed,
   template,
-  // MimePart
 } = require('../utils/utils.js');
 const { Particle } = require('../utils/particle.js');
 
@@ -29,13 +25,13 @@ function Asset (info) {
   this.info = info;
 }
 
-Asset.prototype.get = function () {
+Asset.prototype.get = function (fetchParams) {
   const data = {
     hash: this.info.hash,
     short: this.info.hash.substr(0, 2)
   };
 
-  return getPromissed(template(URL.ASSETS, data));
+  return getPromissed(template(URL.ASSETS, data), fetchParams);
 }
 
 function Version (info) {
@@ -44,20 +40,20 @@ function Version (info) {
   this.assets = new Particle();
 }
 
-Version.prototype.fetch = function () {
+Version.prototype.fetch = function (fetchParams) {
   if (!this.data.isLoading()) {
-    return this.data.promised(getPromissedJSON(this.info.url)).then(getParticleData);
+    return this.data.promised(getPromissedJSON(this.info.url, fetchParams)).then(getParticleData);
   }
 
   return Promise.reject(new Error('Request is already been sent'))
 }
 
-Version.prototype.get = function () {
+Version.prototype.get = function (fetchParams) {
   if (this.data.isSuccess()) {
     return Promise.resolve(getParticleData(this.data));
   }
 
-  return this.fetch();
+  return this.fetch(fetchParams);
 }
 
 Version.prototype.getFromFile = function (file) {
@@ -68,10 +64,10 @@ Version.prototype.getFromFile = function (file) {
   return Promise.reject(new Error('File is already being read'));
 }
 
-Version.prototype.getAssets = function () {
+Version.prototype.getAssets = function (fetchParams) {
   const version = this;
 
-  return this.get().then(function (data) {
+  return this.get(fetchParams).then(function (data) {
     if (version.assets.isSuccess()) {
       return Promise.resolve(getParticleData(version.assets));
     }
@@ -80,27 +76,27 @@ Version.prototype.getAssets = function () {
       return Promise.reject(new Error('Request is already been sent'));
     }
 
-    return version.assets.promised(getPromissedJSON(data.assetIndex.url)).then(getParticleData);
+    return version.assets.promised(getPromissedJSON(data.assetIndex.url, fetchParams)).then(getParticleData);
   });
 }
 
-Version.prototype.getAsset = function (file) {
+Version.prototype.getAsset = function (file, fetchParams) {
   const version = this;
 
-  return this.getAssets().then(function (assets) {
+  return this.getAssets(fetchParams).then(function (assets) {
     return assets && assets.objects[file] ? new Asset(assets.objects[file]) : null
   });
 }
 
-Version.prototype.getClient = function (params) {
-  return this.get().then(function (data) {
-    return data.downloads.client ? download(data.downloads.client, params) : null;
+Version.prototype.getClient = function (fetchParams) {
+  return this.get(fetchParams).then(function (data) {
+    return data.downloads.client ? download(data.downloads.client, fetchParams) : null;
   });
 }
 
-Version.prototype.getServer = function (params) {
-  return this.get().then(function (data) {
-    return data.downloads.server ? download(data.downloads.server, params) : null;
+Version.prototype.getServer = function (fetchParams) {
+  return this.get(fetchParams).then(function (data) {
+    return data.downloads.server ? download(data.downloads.server, fetchParams) : null;
   });
 }
 
@@ -122,32 +118,40 @@ Versions.prototype.find = function (id) {
   return null;
 }
 
-Versions.prototype.fetch = function () {
+Versions.prototype.fetch = function (fetchParams) {
   if(!this.data.isLoading()) {
-    return this.data.promised(getPromissedJSON(URL.MANIFEST))
+    return this.data.promised(getPromissedJSON(URL.MANIFEST, fetchParams));
   }
 
   return Promise.reject(new Error('Request is already been sent'));
 }
 
-Versions.prototype.get = function (id) {
+Versions.prototype.getList = function (fetchParams) {
   const versions = this;
 
   return new Promise(function (resolve, reject) {
     if (versions.data.isSuccess()) {
-      if (id) {
-        resolve(versions.find(id));
-      } else {
-        resolve(versions.data.data);
-      }
+      resolve(getParticleData(versions.data));
     } else {
-      versions.fetch()
+      versions.fetch(fetchParams)
         .then(function (data) {
-          if (id) {
-            resolve(versions.find(id));
-          } else {
-            resolve(data.data)
-          }
+          resolve(getParticleData(data));
+        })
+        .catch(reject)
+    }
+  });
+}
+
+Versions.prototype.get = function (id, fetchParams) {
+  const versions = this;
+
+  return new Promise(function (resolve, reject) {
+    if (versions.data.isSuccess()) {
+      resolve(versions.find(id));
+    } else {
+      versions.fetch(fetchParams)
+        .then(function () {
+          resolve(versions.find(id));
         })
         .catch(reject)
     }
@@ -163,8 +167,8 @@ Versions.prototype.getFromFile = function (file) {
   });
 }
 
-Versions.prototype.getVersion = function (id) {
-  return this.get(id).then(function (version) {return version.get()})
+Versions.prototype.getVersion = function (id, fetchParams) {
+  return this.get(id, fetchParams).then(function (version) {return version.get(fetchParams)})
 }
 
 module.exports = Versions;
