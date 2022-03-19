@@ -7,11 +7,14 @@ const {
 } = require('../utils/utils.js');
 const { Particle } = require('../utils/particle.js');
 
-function download (artifact, params) {
+function download (artifact, { onProgress: progress, ...params } = {}) {
   const url = artifact && artifact.url;
+  function onProgress(size) {
+    progress && progress(size, artifact.size);
+  }
 
   if (url) {
-    return getPromissed(url, params);
+    return getPromissed(url, { ...params, onProgress });
   } else {
     return Promise.reject(new Error('"' + artifact + '" is not an artifact'));
   }
@@ -31,7 +34,10 @@ Asset.prototype.get = function (fetchParams) {
     short: this.info.hash.substr(0, 2)
   };
 
-  return getPromissed(template(URL.ASSETS, data), fetchParams);
+  return download({
+    url: template(URL.ASSETS, data),
+    size: this.info.size
+  }, fetchParams);
 }
 
 function Version (info) {
@@ -81,8 +87,6 @@ Version.prototype.getAssets = function (fetchParams) {
 }
 
 Version.prototype.getAsset = function (file, fetchParams) {
-  const version = this;
-
   return this.getAssets(fetchParams).then(function (assets) {
     return assets && assets.objects[file] ? new Asset(assets.objects[file]) : null
   });
