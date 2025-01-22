@@ -1,6 +1,6 @@
 const URL = {
   MANIFEST: 'https://launchermeta.mojang.com/mc/game/version_manifest.json',
-  ASSETS: 'http://resources.download.minecraft.net/${short}/${hash}',
+  ASSETS: 'https://resources.download.minecraft.net/${short}/${hash}',
   UUID: 'https://api.mojang.com/users/profiles/minecraft/${name}',
   UUID_TIME: 'https://api.mojang.com/users/profiles/minecraft/${name}?at=${timestamp}',
   NAMES: 'https://api.mojang.com/user/profiles/${uuid}/names',
